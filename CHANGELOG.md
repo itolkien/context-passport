@@ -2,7 +2,7 @@
 
 All notable changes to Context Passport will be documented in this file.
 
-## 0.1.0 - Unreleased
+## 0.1.0 - 2026-05-11
 
 ### Added
 - Local-first Context Passport bundle schema.
