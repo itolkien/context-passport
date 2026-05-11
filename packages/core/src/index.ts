@@ -103,8 +103,36 @@ export type RedactionResult = {
 
 const BUILT_IN_REDACTION_RULES: RedactionRule[] = [
   {
+    id: "private_key",
+    pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+  },
+  {
     id: "github_token",
     pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b/g,
+  },
+  {
+    id: "aws_access_key_id",
+    pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
+  },
+  {
+    id: "aws_secret_access_key",
+    pattern: /\bAWS_SECRET_ACCESS_KEY\b\s*[:=]\s*["']?[A-Za-z0-9/+=]{40}["']?/g,
+  },
+  {
+    id: "stripe_key",
+    pattern: /\b[rs]k_(?:live|test)_[A-Za-z0-9]{24,}\b/g,
+  },
+  {
+    id: "anthropic_api_key",
+    pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g,
+  },
+  {
+    id: "google_api_key",
+    pattern: /\bAIza[0-9A-Za-z_-]{30,}\b/g,
+  },
+  {
+    id: "jwt",
+    pattern: /\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
   },
   {
     id: "openai_api_key",

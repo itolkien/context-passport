@@ -51,6 +51,56 @@ describe("redaction engine", () => {
     ]);
   });
 
+  it("masks high-risk provider credentials used by AI apps", () => {
+    const join = (...parts: string[]) => parts.join("");
+    const secrets = {
+      awsAccessKey: join("AK", "IA", "IOSFODNN7EXAMPLE"),
+      awsSecretKey: join("wJalr", "XUtnFEMI/K7MDENG/bPxRfiCY", "EXAMPLEKEY"),
+      stripeSecretKey: join("sk", "_live_", "1234567890abcdefghijklmnopqrstuv"),
+      stripeRestrictedKey: join("rk", "_live_", "1234567890abcdefghijklmnopqrstuv"),
+      anthropicApiKey: join("sk-ant-", "api03-", "a".repeat(95), "AA"),
+      googleApiKey: join("AI", "za", "SyA1234567890abcdefghijklmnopqrstuvwx"),
+      jwt: join(
+        "eyJ",
+        "hbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+        ".eyJ",
+        "zdWIiOiIxMjM0NTY3ODkwIn0",
+        ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+      ),
+      privateKey: [
+        join("-----BEGIN ", "PRIVATE KEY-----"),
+        "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDdemo",
+        join("-----END ", "PRIVATE KEY-----"),
+      ].join("\n"),
+    };
+    const input = [
+      `AWS_ACCESS_KEY_ID=${secrets.awsAccessKey}`,
+      `AWS_SECRET_ACCESS_KEY=${secrets.awsSecretKey}`,
+      `STRIPE_SECRET_KEY=${secrets.stripeSecretKey}`,
+      `STRIPE_RESTRICTED_KEY=${secrets.stripeRestrictedKey}`,
+      `ANTHROPIC_API_KEY=${secrets.anthropicApiKey}`,
+      `GOOGLE_API_KEY=${secrets.googleApiKey}`,
+      `JWT=${secrets.jwt}`,
+      secrets.privateKey,
+    ].join("\n");
+
+    const result = redactText(input);
+
+    for (const secret of Object.values(secrets)) {
+      expect(result.text).not.toContain(secret);
+    }
+    expect(result.findings.map((finding) => finding.ruleId)).toEqual([
+      "private_key",
+      "aws_access_key_id",
+      "aws_secret_access_key",
+      "stripe_key",
+      "stripe_key",
+      "anthropic_api_key",
+      "google_api_key",
+      "jwt",
+    ]);
+  });
+
   it("supports custom redaction rules without leaking matched values", () => {
     const result = redactText("customer id: cust_very_private_123", {
       customRules: [{ id: "customer_id", pattern: "cust_[a-z_]+_\\d+" }],

@@ -16,6 +16,7 @@ All notable changes to Context Passport will be documented in this file.
 - Overwrite warning for existing output directories in the wizard to prevent accidental data loss.
 - Overwrite warning for existing archive paths in the wizard export flow.
 - Publish-safe package whitelists and tarball install smoke coverage for the CLI/core/shared packages.
+- Expanded built-in redaction patterns for AWS access keys, AWS secret assignments, Stripe keys, Anthropic keys, Google API keys, JWTs, and PEM private keys.
 
 ### Changed
 
