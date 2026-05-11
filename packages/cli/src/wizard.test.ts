@@ -24,7 +24,7 @@ describe("interactive wizard", () => {
       "1",
       "1",
       "Debug handoff",
-      "Contact talha@example.com and token ghp_12...3456",
+      "Contact talha@example.com with API_KEY=sk-123...wxyz",
       bundleDir,
       "y",
       "y",
@@ -50,7 +50,7 @@ describe("interactive wizard", () => {
     expect(transcript).toContain("Step 3/4 · Privacy check");
     expect(transcript).toContain("Step 4/4 · Export");
     expect(transcript).toContain("✓ Bundle created");
-    expect(transcript).toContain("! Secret findings: 1");
+    expect(transcript).toContain("! Secret findings: 2");
     expect(transcript).toContain("✓ Export ready");
     expect(transcript).toContain("Next: share this .cpb.zip with another AI tool or teammate.");
   });

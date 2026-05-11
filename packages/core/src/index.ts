@@ -111,12 +111,17 @@ const BUILT_IN_REDACTION_RULES: RedactionRule[] = [
     pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/g,
   },
   {
+    id: "generic_secret",
+    pattern: /\b(?:api[_-]?key|token|secret|password)\b\s*[:=]\s*["']?[^\s"']{8,}/gi,
+  },
+  {
     id: "email",
     pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
   },
   {
     id: "local_path",
-    pattern: /(?:\/home\/[A-Za-z0-9._-]+|\/Users\/[A-Za-z0-9._-]+|[A-Z]:\\\\Users\\\\[A-Za-z0-9._-]+)(?:[\/\\][^\s"'`]+)*/g,
+    pattern:
+      /(?:\/home\/[A-Za-z0-9._-]+|\/Users\/[A-Za-z0-9._-]+|[A-Z]:\\\\Users\\\\[A-Za-z0-9._-]+)(?:[\/\\][^\s"'`]+)*/g,
   },
 ];
 
@@ -176,7 +181,12 @@ function toGlobalRegex(pattern: string | RegExp): RegExp {
   return new RegExp(pattern.source, flags);
 }
 
-function rangesOverlap(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
+function rangesOverlap(
+  leftStart: number,
+  leftEnd: number,
+  rightStart: number,
+  rightEnd: number,
+): boolean {
   return leftStart < rightEnd && rightStart < leftEnd;
 }
 
@@ -213,7 +223,9 @@ export function validateBundle(bundle: unknown): BundleValidationResult {
   for (const artifact of parsed.data.artifacts) {
     const pathValidation = validateArtifactPath(artifact.path);
     if (!pathValidation.success) {
-      errors.push(`Artifact ${artifact.id} has invalid path ${artifact.path}: ${pathValidation.error}`);
+      errors.push(
+        `Artifact ${artifact.id} has invalid path ${artifact.path}: ${pathValidation.error}`,
+      );
     }
 
     if (artifactPaths.has(artifact.path)) {
@@ -229,7 +241,9 @@ export function validateBundle(bundle: unknown): BundleValidationResult {
   return { success: true, errors: [] };
 }
 
-export function validateArtifactPath(path: string): { success: true; normalizedPath: string } | { success: false; error: string } {
+export function validateArtifactPath(
+  path: string,
+): { success: true; normalizedPath: string } | { success: false; error: string } {
   if (path.length === 0) {
     return { success: false, error: "path must not be empty" };
   }
