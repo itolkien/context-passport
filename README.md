@@ -16,13 +16,15 @@ AI tools are getting better, but context handoff is still primitive:
 
 Context Passport creates a small local bundle with a manifest, source metadata, artifacts, hashes, and redaction records. No cloud account. No telemetry. No vector DB cosplay.
 
-## Current v0 capabilities
+## Current v0.2 capabilities
 
 ![Context Passport terminal demo](assets/context-passport-demo.gif)
 
 High-quality video: [assets/context-passport-demo.mp4](assets/context-passport-demo.mp4)
 
-- TypeScript monorepo
+- guided interactive wizard when running `passport` with no subcommand
+- manual note, local file, and URL capture from the wizard
+- wizard actions for inspecting, validating, and exporting existing bundles
 - CLI as source of truth
 - local Fastify daemon for browser capture
 - WXT browser extension popup
@@ -52,6 +54,45 @@ pnpm build
 ```
 
 ## CLI usage
+
+Start the guided wizard:
+
+```bash
+pnpm passport
+```
+
+The wizard can create a bundle, preview/apply redactions, inspect or validate existing bundles, and export a `.cpb.zip` archive without requiring users to memorize the lower-level commands. If an output directory already exists, the wizard warns before replacing it.
+
+Example wizard flow:
+
+```text
+╭─ Context Passport
+│  Local-first AI context handoff
+╰─ Capture → redact → export
+
+Step 1/4 · Choose workflow
+  1) Create a new context bundle
+  2) Inspect an existing bundle
+  3) Validate an existing bundle
+  4) Export an existing bundle
+
+Step 2/4 · Capture source
+  1) Manual note
+  2) Local file
+  3) URL
+
+✓ Bundle created: ./debug-handoff
+  Sources: 1
+  Artifacts: 1
+
+Step 3/4 · Privacy check
+! Secret findings: 1
+✓ Redactions applied.
+
+Step 4/4 · Export
+✓ Export ready: ./debug-handoff.cpb.zip
+Next: share this .cpb.zip with another AI tool or teammate.
+```
 
 Capture a manual note:
 

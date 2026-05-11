@@ -1,6 +1,6 @@
 {
   "name": "context-passport",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Local-first, privacy-first AI context handoff bundles.",
   "license": "MIT",
@@ -37,5 +37,13 @@
     "prettier": "latest",
     "typescript": "latest",
     "vitest": "latest"
-  }
+  },
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "dependencies": {
+    "pnpm": "^11.1.0"
+  },
+  "author": ""
 }

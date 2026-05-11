@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, basename, extname } from "node:path";
 import process from "node:process";
+import { createInterface } from "node:readline/promises";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import JSZip from "jszip";
 import {
@@ -48,6 +50,17 @@ type PortableArchive = {
   artifacts: Array<{ path: string; dataBase64: string }>;
 };
 
+export type InteractiveWizardIO = {
+  prompt: (question: string) => Promise<string>;
+  write: (line: string) => void;
+  close?: () => void;
+};
+
+export type InteractiveWizardResult = {
+  bundlePath: string;
+  archivePath?: string;
+};
+
 export async function captureNoteBundle(input: CaptureNoteInput): Promise<CaptureResult> {
   const now = new Date().toISOString();
   const title = input.title ?? firstUsefulLine(input.note) ?? "Manual note";
@@ -79,7 +92,7 @@ export async function captureNoteBundle(input: CaptureNoteInput): Promise<Captur
 }
 
 export async function captureUrlBundle(input: CaptureUrlInput): Promise<CaptureResult> {
-  const response = await fetch(input.url, { headers: { "user-agent": "context-passport/0.1" } });
+  const response = await fetch(input.url, { headers: { "user-agent": "context-passport/0.2" } });
   if (!response.ok) {
     throw new Error(`Failed to capture URL ${input.url}: HTTP ${response.status}`);
   }
@@ -162,16 +175,22 @@ export async function validateBundlePath(path: string) {
   const resolved = resolve(path);
   const stats = await stat(resolved);
   const archive = stats.isFile() ? await readPortableArchive(resolved) : undefined;
-  const bundle = archive?.bundle ?? (JSON.parse(await readFile(join(resolved, MANIFEST_FILE), "utf8")) as ContextBundle);
+  const bundle =
+    archive?.bundle ??
+    (JSON.parse(await readFile(join(resolved, MANIFEST_FILE), "utf8")) as ContextBundle);
   const manifestValidation = validateBundle(bundle);
   if (!manifestValidation.success) {
     return manifestValidation;
   }
-  const artifactPayloads = archive?.artifacts ?? (await readDirectoryArtifactPayloads(resolved, bundle));
+  const artifactPayloads =
+    archive?.artifacts ?? (await readDirectoryArtifactPayloads(resolved, bundle));
   return validateArchiveArtifacts(bundle, artifactPayloads);
 }
 
-export async function exportBundleArchive(bundlePath: string, archivePath?: string): Promise<string> {
+export async function exportBundleArchive(
+  bundlePath: string,
+  archivePath?: string,
+): Promise<string> {
   const { bundle, artifacts } = await readBundle(bundlePath);
   const validation = validateBundle(bundle);
   if (!validation.success) {
@@ -233,7 +252,10 @@ async function readPortableArchive(archivePath: string): Promise<PortableArchive
   }
 
   const bundle = JSON.parse(await manifestEntry.async("string")) as ContextBundle;
-  const allowedEntries = new Set([MANIFEST_FILE, ...bundle.artifacts.map((artifact) => artifact.path)]);
+  const allowedEntries = new Set([
+    MANIFEST_FILE,
+    ...bundle.artifacts.map((artifact) => artifact.path),
+  ]);
   zip.forEach((entryPath, entry) => {
     if (!entry.dir && !allowedEntries.has(entryPath)) {
       throw new Error(`Invalid Context Passport archive: unexpected entry ${entryPath}`);
@@ -274,7 +296,13 @@ export async function inspectBundlePath(path: string): Promise<string> {
 
 export async function redactBundlePath(path: string, options: { apply?: boolean } = {}) {
   const { bundle, artifacts } = await readBundle(path);
-  const allFindings: Array<{ artifactId: string; ruleId: string; start: number; end: number; replacement: string }> = [];
+  const allFindings: Array<{
+    artifactId: string;
+    ruleId: string;
+    start: number;
+    end: number;
+    replacement: string;
+  }> = [];
   const updatedArtifacts: BundleArtifact[] = [];
   const manifestRedaction = redactManifestStrings(bundle);
   allFindings.push(
@@ -333,10 +361,117 @@ export async function redactBundlePath(path: string, options: { apply?: boolean 
         })),
       ],
     };
-    await writeFile(join(path, MANIFEST_FILE), `${JSON.stringify(updatedBundle, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(path, MANIFEST_FILE),
+      `${JSON.stringify(updatedBundle, null, 2)}\n`,
+      "utf8",
+    );
   }
 
   return { findings: allFindings };
+}
+
+export async function runInteractiveWizard(
+  io = createTerminalWizardIO(),
+): Promise<InteractiveWizardResult | undefined> {
+  try {
+    return await runInteractiveWizardSteps(io);
+  } finally {
+    io.close?.();
+  }
+}
+
+async function runInteractiveWizardSteps(
+  io: InteractiveWizardIO,
+): Promise<InteractiveWizardResult | undefined> {
+  writeBanner(io);
+  writeStep(io, "1/4", "Choose workflow");
+  io.write("  1) Create a new context bundle");
+  io.write("  2) Inspect an existing bundle");
+  io.write("  3) Validate an existing bundle");
+  io.write("  4) Export an existing bundle");
+  io.write("");
+
+  const action = normalizeMenuChoice(await io.prompt("Choose an option"));
+  if (action === "2") {
+    const bundlePath = await askRequired(io, "Bundle path");
+    io.write(await inspectBundlePath(bundlePath));
+    return { bundlePath: resolve(bundlePath) };
+  }
+  if (action === "3") {
+    const bundlePath = await askRequired(io, "Bundle path");
+    const validation = await validateBundlePath(bundlePath);
+    io.write(
+      validation.success
+        ? "✓ Bundle is valid"
+        : `✗ Bundle is invalid: ${validation.errors.join("; ")}`,
+    );
+    return { bundlePath: resolve(bundlePath) };
+  }
+  if (action === "4") {
+    writeStep(io, "1/2", "Select existing bundle");
+    const bundlePath = await askRequired(io, "Bundle path");
+    const defaultArchivePath = `${bundlePath}.cpb.zip`;
+    const archivePath = await askSafeArchivePath(io, defaultArchivePath);
+    writeStep(io, "2/2", "Export");
+    const exportedPath = await exportBundleArchive(bundlePath, archivePath);
+    io.write(`✓ Export ready: ${exportedPath}`);
+    io.write("Next: share this .cpb.zip with another AI tool or teammate.");
+    return { bundlePath: resolve(bundlePath), archivePath: exportedPath };
+  }
+  if (action !== "1") {
+    io.write("No action selected.");
+    return undefined;
+  }
+
+  writeStep(io, "2/4", "Capture source");
+  io.write("  1) Manual note");
+  io.write("  2) Local file");
+  io.write("  3) URL");
+  io.write("");
+
+  const source = normalizeMenuChoice(await io.prompt("Choose a source"));
+  const title = await askOptional(io, "Bundle title");
+  const captured =
+    source === "2"
+      ? await captureFileBundle({
+          file: await askRequired(io, "File path"),
+          ...createCaptureOptions(title, await askSafeOutputDirectory(io)),
+        })
+      : source === "3"
+        ? await captureUrlBundle({
+            url: await askRequired(io, "URL"),
+            ...createCaptureOptions(title, await askSafeOutputDirectory(io)),
+          })
+        : await captureNoteBundle({
+            note: await askRequired(io, "Note"),
+            ...createCaptureOptions(title, await askSafeOutputDirectory(io)),
+          });
+
+  io.write("");
+  io.write(`✓ Bundle created: ${captured.path}`);
+  io.write(`  Sources: ${captured.bundle.sources.length}`);
+  io.write(`  Artifacts: ${captured.bundle.artifacts.length}`);
+
+  writeStep(io, "3/4", "Privacy check");
+  const redactionPreview = await redactBundlePath(captured.path, { apply: false });
+  io.write(`! Secret findings: ${redactionPreview.findings.length}`);
+  if (redactionPreview.findings.length > 0 && (await askYesNo(io, "Apply redactions now?"))) {
+    await redactBundlePath(captured.path, { apply: true });
+    io.write("✓ Redactions applied.");
+  }
+
+  writeStep(io, "4/4", "Export");
+  if (await askYesNo(io, "Export zip archive now?")) {
+    const archivePath = await askSafeArchivePath(io, `${captured.path}.cpb.zip`);
+    const exportedPath = await exportBundleArchive(captured.path, archivePath);
+    io.write(`✓ Export ready: ${exportedPath}`);
+    io.write("Next: share this .cpb.zip with another AI tool or teammate.");
+    return { bundlePath: captured.path, archivePath };
+  }
+
+  io.write("Next: inspect or export this bundle when you are ready.");
+  return { bundlePath: captured.path };
 }
 
 export function createProgram(): Command {
@@ -344,13 +479,20 @@ export function createProgram(): Command {
   program
     .name("passport")
     .description("Create and inspect local-first AI context handoff bundles")
-    .version("0.1.0");
+    .version("0.2.0")
+    .action(async () => {
+      await runInteractiveWizard();
+    });
 
   program
     .command("init")
     .description("Initialize Context Passport configuration in the current project")
     .action(async () => {
-      await writeFile("context-passport.config.json", `${JSON.stringify({ schemaVersion: "0.1.0" }, null, 2)}\n`, "utf8");
+      await writeFile(
+        "context-passport.config.json",
+        `${JSON.stringify({ schemaVersion: "0.1.0" }, null, 2)}\n`,
+        "utf8",
+      );
       console.log("created context-passport.config.json");
     });
 
@@ -362,15 +504,23 @@ export function createProgram(): Command {
     .option("--note <text>", "Manual note to capture")
     .option("--title <title>", "Bundle title")
     .option("--out <path>", "Output bundle directory")
-    .action(async (options: { url?: string; file?: string; note?: string; title?: string; out?: string }) => {
-      const captureOptions = withoutUndefined({ title: options.title, out: options.out });
-      const result = options.url
-        ? await captureUrlBundle({ url: options.url, ...captureOptions })
-        : options.file
-          ? await captureFileBundle({ file: options.file, ...captureOptions })
-          : await captureNoteBundle({ note: options.note ?? "", ...captureOptions });
-      console.log(result.path);
-    });
+    .action(
+      async (options: {
+        url?: string;
+        file?: string;
+        note?: string;
+        title?: string;
+        out?: string;
+      }) => {
+        const captureOptions = withoutUndefined({ title: options.title, out: options.out });
+        const result = options.url
+          ? await captureUrlBundle({ url: options.url, ...captureOptions })
+          : options.file
+            ? await captureFileBundle({ file: options.file, ...captureOptions })
+            : await captureNoteBundle({ note: options.note ?? "", ...captureOptions });
+        console.log(result.path);
+      },
+    );
 
   program
     .command("validate")
@@ -423,6 +573,126 @@ export function createProgram(): Command {
   return program;
 }
 
+function createTerminalWizardIO(): InteractiveWizardIO {
+  if (!process.stdin.isTTY) {
+    const linesPromise = readStdinLines();
+    let lines: string[] | undefined;
+    return {
+      prompt: async (question: string) => {
+        process.stdout.write(`${question}: `);
+        const bufferedLines = lines ?? (await linesPromise);
+        lines = bufferedLines;
+        return bufferedLines.shift() ?? "";
+      },
+      write: (line: string) => console.log(line),
+    };
+  }
+
+  const readline = createInterface({ input: process.stdin, output: process.stdout });
+  return {
+    prompt: (question: string) => readline.question(`${question}: `),
+    write: (line: string) => console.log(line),
+    close: () => readline.close(),
+  };
+}
+
+function normalizeMenuChoice(input: string): string {
+  return input.trim().toLowerCase();
+}
+
+function writeBanner(io: InteractiveWizardIO): void {
+  io.write("╭─ Context Passport");
+  io.write("│  Local-first AI context handoff");
+  io.write("╰─ Capture → redact → export");
+  io.write("");
+}
+
+function writeStep(io: InteractiveWizardIO, step: string, title: string): void {
+  io.write("");
+  io.write(`Step ${step} · ${title}`);
+}
+
+async function readStdinLines(): Promise<string[]> {
+  const chunks: string[] = [];
+  process.stdin.setEncoding("utf8");
+  for await (const chunk of process.stdin) {
+    chunks.push(String(chunk));
+  }
+  return chunks.join("").split(/\r?\n/);
+}
+
+async function askOptional(io: InteractiveWizardIO, question: string): Promise<string | undefined> {
+  const answer = (await io.prompt(question)).trim();
+  return answer.length > 0 ? answer : undefined;
+}
+
+async function askRequired(io: InteractiveWizardIO, question: string): Promise<string> {
+  const answer = (await io.prompt(question)).trim();
+  if (answer.length === 0) {
+    throw new Error(`${question} is required`);
+  }
+  return answer;
+}
+
+async function askSafeOutputDirectory(io: InteractiveWizardIO): Promise<string> {
+  const outputDirectory = await askRequired(io, "Output directory");
+  if (await pathExists(outputDirectory)) {
+    io.write(`! Output already exists: ${resolve(outputDirectory)}`);
+    io.write("  Continuing will replace that directory and its contents.");
+    if (!(await askYesNo(io, "Overwrite existing output directory?"))) {
+      throw new Error("Output directory already exists; choose another path or confirm overwrite.");
+    }
+  }
+  return outputDirectory;
+}
+
+async function askSafeArchivePath(
+  io: InteractiveWizardIO,
+  defaultArchivePath: string,
+): Promise<string> {
+  const archivePath =
+    (await askOptional(io, `Archive path (${defaultArchivePath})`)) ?? defaultArchivePath;
+  if (await pathExists(archivePath)) {
+    io.write(`! Archive already exists: ${resolve(archivePath)}`);
+    io.write("  Continuing will replace that archive file.");
+    if (!(await askYesNo(io, "Overwrite existing archive?"))) {
+      throw new Error("Archive path already exists; choose another path or confirm overwrite.");
+    }
+  }
+  return archivePath;
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function askYesNo(io: InteractiveWizardIO, question: string): Promise<boolean> {
+  const answer = (await io.prompt(question)).trim().toLowerCase();
+  return answer === "y" || answer === "yes";
+}
+
+function createCaptureOptions(
+  title: string | undefined,
+  out: string | undefined,
+): { title?: string; out?: string } {
+  const options: { title?: string; out?: string } = {};
+  if (title !== undefined) {
+    options.title = title;
+  }
+  if (out !== undefined) {
+    options.out = out;
+  }
+  return options;
+}
+
 async function writeBundleDirectory(
   out: string,
   bundle: ContextBundle,
@@ -438,7 +708,11 @@ async function writeBundleDirectory(
   }
 }
 
-async function readBundle(path: string): Promise<{ bundle: ContextBundle; artifacts: BundleArtifact[]; artifactPayloads: PortableArchive["artifacts"] }> {
+async function readBundle(path: string): Promise<{
+  bundle: ContextBundle;
+  artifacts: BundleArtifact[];
+  artifactPayloads: PortableArchive["artifacts"];
+}> {
   const resolved = resolve(path);
   const stats = await stat(resolved);
   if (stats.isFile()) {
@@ -455,11 +729,16 @@ async function readBundle(path: string): Promise<{ bundle: ContextBundle; artifa
   return { bundle, artifacts: bundle.artifacts, artifactPayloads };
 }
 
-async function readDirectoryArtifactPayloads(bundleDir: string, bundle: ContextBundle): Promise<PortableArchive["artifacts"]> {
+async function readDirectoryArtifactPayloads(
+  bundleDir: string,
+  bundle: ContextBundle,
+): Promise<PortableArchive["artifacts"]> {
   return Promise.all(
     bundle.artifacts.map(async (artifact) => ({
       path: artifact.path,
-      dataBase64: (await readFile(resolveArtifactPath(bundleDir, artifact.path))).toString("base64"),
+      dataBase64: (await readFile(resolveArtifactPath(bundleDir, artifact.path))).toString(
+        "base64",
+      ),
     })),
   );
 }
@@ -484,7 +763,9 @@ function createTextArtifact(input: {
 }
 
 function withoutUndefined<T extends Record<string, unknown>>(input: T): Partial<T> {
-  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<T>;
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
 }
 
 function resolveArtifactPath(bundlePath: string, artifactPath: string): string {
@@ -496,13 +777,21 @@ function resolveArtifactPath(bundlePath: string, artifactPath: string): string {
   const root = resolve(bundlePath);
   const destination = resolve(root, pathValidation.normalizedPath);
   const relativeDestination = relative(root, destination);
-  if (relativeDestination === ".." || relativeDestination.startsWith(`..${"/"}`) || relativeDestination.startsWith(`..${"\\"}`) || isAbsolute(relativeDestination)) {
+  if (
+    relativeDestination === ".." ||
+    relativeDestination.startsWith(`..${"/"}`) ||
+    relativeDestination.startsWith(`..${"\\"}`) ||
+    isAbsolute(relativeDestination)
+  ) {
     throw new Error(`Artifact path escapes bundle directory: ${artifactPath}`);
   }
   return destination;
 }
 
-function validateArchiveArtifacts(bundle: ContextBundle, artifacts: PortableArchive["artifacts"]): { success: true; errors: [] } | { success: false; errors: string[] } {
+function validateArchiveArtifacts(
+  bundle: ContextBundle,
+  artifacts: PortableArchive["artifacts"],
+): { success: true; errors: [] } | { success: false; errors: string[] } {
   const errors: string[] = [];
   const archiveArtifactsByPath = new Map<string, string>();
 
@@ -540,15 +829,22 @@ function validateArchiveArtifacts(bundle: ContextBundle, artifacts: PortableArch
 
 function validateArtifactBytes(artifact: BundleArtifact, bytes: Buffer): void {
   if (bytes.byteLength !== artifact.bytes) {
-    throw new Error(`Artifact ${artifact.id} byte length mismatch for ${artifact.path}: expected ${artifact.bytes}, got ${bytes.byteLength}`);
+    throw new Error(
+      `Artifact ${artifact.id} byte length mismatch for ${artifact.path}: expected ${artifact.bytes}, got ${bytes.byteLength}`,
+    );
   }
   const actualSha256 = createHash("sha256").update(bytes).digest("hex");
   if (actualSha256 !== artifact.sha256.toLowerCase()) {
-    throw new Error(`Artifact ${artifact.id} sha256 mismatch for ${artifact.path}: expected ${artifact.sha256}, got ${actualSha256}`);
+    throw new Error(
+      `Artifact ${artifact.id} sha256 mismatch for ${artifact.path}: expected ${artifact.sha256}, got ${actualSha256}`,
+    );
   }
 }
 
-function redactManifestStrings(bundle: ContextBundle): { bundle: ContextBundle; findings: Array<{ ruleId: string; start: number; end: number; replacement: string }> } {
+function redactManifestStrings(bundle: ContextBundle): {
+  bundle: ContextBundle;
+  findings: Array<{ ruleId: string; start: number; end: number; replacement: string }>;
+} {
   const findings: Array<{ ruleId: string; start: number; end: number; replacement: string }> = [];
   const redacted = redactJsonValue(bundle, [], findings) as ContextBundle;
   return { bundle: redacted, findings };
@@ -564,12 +860,14 @@ function redactJsonValue(
       return value;
     }
     const result = redactText(value);
-    findings.push(...result.findings.map((finding) => ({
-      ruleId: finding.ruleId,
-      start: finding.start,
-      end: finding.end,
-      replacement: finding.replacement,
-    })));
+    findings.push(
+      ...result.findings.map((finding) => ({
+        ruleId: finding.ruleId,
+        start: finding.start,
+        end: finding.end,
+        replacement: finding.replacement,
+      })),
+    );
     return result.text;
   }
 
@@ -579,7 +877,10 @@ function redactJsonValue(
 
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, nested]) => [key, redactJsonValue(nested, [...path, key], findings)]),
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        redactJsonValue(nested, [...path, key], findings),
+      ]),
     );
   }
 
@@ -680,9 +981,18 @@ function htmlToReadableMarkdown(html: string, url: string): string {
   return `# ${title}\n\nSource: ${url}\n\n${body}\n`;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  createProgram().parseAsync(process.argv).catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  });
+async function isCliEntrypoint(): Promise<boolean> {
+  if (!process.argv[1]) {
+    return false;
+  }
+  return (await realpath(process.argv[1])) === (await realpath(fileURLToPath(import.meta.url)));
+}
+
+if (await isCliEntrypoint()) {
+  createProgram()
+    .parseAsync(process.argv)
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
 }
