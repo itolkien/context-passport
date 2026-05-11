@@ -27,7 +27,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm --filter @context-passport/core build && pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "format": "prettier --write .",
     "passport": "pnpm --filter @context-passport/cli passport"
@@ -36,7 +36,6 @@
     "@types/node": "latest",
     "prettier": "latest",
     "typescript": "latest",
-    "vitest": "latest",
-    "pnpm": "latest"
+    "vitest": "latest"
   }
 }
