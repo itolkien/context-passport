@@ -83,4 +83,82 @@ describe("context bundle", () => {
     expect(calculateBundleHash(bundle)).toMatch(/^[a-f0-9]{64}$/);
     expect(calculateBundleHash(bundle)).toBe(calculateBundleHash(bundle));
   });
+
+  it("rejects unsafe or non-canonical artifact paths", () => {
+    const invalidPaths = [
+      "manifest.json",
+      "artifacts/../manifest.json",
+      "artifacts//secret.txt",
+      "artifacts/./secret.txt",
+      "artifacts\\secret.txt",
+      "/tmp/secret.txt",
+      "C:/Users/talha/secret.txt",
+    ];
+
+    for (const path of invalidPaths) {
+      const bundle = createBundle({
+        title: `Invalid ${path}`,
+        sources: [
+          {
+            id: "src_note_1",
+            type: "manual_note",
+            title: "Note",
+            capturedAt: "2026-05-11T20:00:00.000Z",
+          },
+        ],
+        artifacts: [
+          {
+            id: "art_note_1",
+            sourceId: "src_note_1",
+            type: "markdown",
+            path,
+            mediaType: "text/markdown",
+            bytes: 10,
+            sha256: "2".repeat(64),
+          },
+        ],
+      });
+
+      expect(validateBundle(bundle).success).toBe(false);
+    }
+  });
+
+  it("rejects duplicate artifact paths", () => {
+    const bundle = createBundle({
+      title: "Duplicate paths",
+      sources: [
+        {
+          id: "src_note_1",
+          type: "manual_note",
+          title: "Note",
+          capturedAt: "2026-05-11T20:00:00.000Z",
+        },
+      ],
+      artifacts: [
+        {
+          id: "art_note_1",
+          sourceId: "src_note_1",
+          type: "markdown",
+          path: "artifacts/note.md",
+          mediaType: "text/markdown",
+          bytes: 10,
+          sha256: "2".repeat(64),
+        },
+        {
+          id: "art_note_2",
+          sourceId: "src_note_1",
+          type: "markdown",
+          path: "artifacts/note.md",
+          mediaType: "text/markdown",
+          bytes: 10,
+          sha256: "3".repeat(64),
+        },
+      ],
+    });
+
+    const result = validateBundle(bundle);
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toContain("Artifact art_note_2 duplicates artifact path artifacts/note.md");
+  });
 });

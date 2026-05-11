@@ -8,5 +8,6 @@ coverage/
 !.env.example
 *.ctxpack
 *.zip
+!examples/*.cpb.zip
 packages/extension/.output/
 packages/extension/.wxt/

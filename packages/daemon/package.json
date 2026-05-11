@@ -11,6 +11,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@context-passport/core": "workspace:*",
     "fastify": "latest"
   },
   "devDependencies": {

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "0.1.0",
+  "id": "demo-bundle-fd4562da79",
+  "title": "Demo bundle",
+  "createdAt": "2026-05-11T20:00:00.000Z",
+  "sources": [
+    {
+      "id": "src_manual_note",
+      "type": "manual_note",
+      "title": "Demo bundle",
+      "capturedAt": "2026-05-11T20:00:00.000Z",
+      "metadata": {}
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art_manual_note",
+      "sourceId": "src_manual_note",
+      "type": "markdown",
+      "path": "artifacts/manual-note.md",
+      "mediaType": "text/markdown",
+      "bytes": 122,
+      "sha256": "d6b0d00a2473dc42e43ba5ce7ef99c2c06fb608c9b7fb358abf744f981317e07",
+      "metadata": {}
+    }
+  ],
+  "redactions": [
+    {
+      "artifactId": "art_manual_note",
+      "ruleId": "email",
+      "start": 43,
+      "end": 60,
+      "replacement": "[REDACTED:email]"
+    },
+    {
+      "artifactId": "art_manual_note",
+      "ruleId": "github_token",
+      "start": 71,
+      "end": 113,
+      "replacement": "[REDACTED:github_token]"
+    }
+  ],
+  "tags": [],
+  "metadata": {}
+}

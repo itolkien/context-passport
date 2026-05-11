@@ -5,5 +5,6 @@ export default defineConfig({
     name: "Context Passport",
     description: "Capture AI-ready context bundles from the browser.",
     permissions: ["activeTab", "scripting", "storage"],
+    host_permissions: ["http://127.0.0.1:17345/*"],
   },
 });

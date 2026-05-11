@@ -4,6 +4,24 @@
   "private": true,
   "description": "Local-first, privacy-first AI context handoff bundles.",
   "license": "MIT",
+  "keywords": [
+    "ai",
+    "context",
+    "privacy",
+    "redaction",
+    "browser-extension",
+    "cli",
+    "local-first",
+    "handoff"
+  ],
+  "homepage": "https://github.com/itolkien/context-passport#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itolkien/context-passport.git"
+  },
+  "bugs": {
+    "url": "https://github.com/itolkien/context-passport/issues"
+  },
   "type": "module",
   "packageManager": "pnpm@10.23.0",
   "scripts": {

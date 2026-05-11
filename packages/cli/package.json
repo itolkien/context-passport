@@ -17,11 +17,12 @@
   "dependencies": {
     "@context-passport/core": "workspace:*",
     "@context-passport/shared": "workspace:*",
-    "commander": "latest"
+    "commander": "latest",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@types/node": "latest",
-    "vitest": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "vitest": "latest"
   }
 }
