@@ -1,0 +1,27 @@
+{
+  "name": "@context-passport/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "passport": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/make-executable.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "passport": "node dist/index.js"
+  },
+  "dependencies": {
+    "@context-passport/core": "workspace:*",
+    "@context-passport/shared": "workspace:*",
+    "commander": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "vitest": "latest",
+    "typescript": "latest"
+  }
+}
