@@ -18,7 +18,9 @@ Context Passport creates a small local bundle with a manifest, source metadata, 
 
 ## Current v0 capabilities
 
-![Context Passport terminal demo](assets/terminal-demo.svg)
+![Context Passport terminal demo](assets/context-passport-demo.gif)
+
+High-quality video: [assets/context-passport-demo.mp4](assets/context-passport-demo.mp4)
 
 - TypeScript monorepo
 - CLI as source of truth
