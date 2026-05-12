@@ -42,8 +42,5 @@
   "directories": {
     "example": "examples"
   },
-  "dependencies": {
-    "pnpm": "^11.1.0"
-  },
   "author": ""
 }
