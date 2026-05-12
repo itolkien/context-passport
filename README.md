@@ -16,7 +16,7 @@ AI tools are getting better, but context handoff is still primitive:
 
 Context Passport creates a small local bundle with a manifest, source metadata, artifacts, hashes, and redaction records. No cloud account. No telemetry. No vector DB cosplay.
 
-## Current v0.2 capabilities
+## Stable v1 capabilities
 
 ![Context Passport terminal demo](assets/context-passport-demo.gif)
 
@@ -192,6 +192,12 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+## Project status
+
+Context Passport is v1.0.0 stable and feature-complete for its core mission: capture local AI context, redact sensitive data, validate the bundle, and export a portable `.cpb.zip` handoff artifact.
+
+The project is now in maintenance mode. Future changes should stay boring: bug fixes, security/redaction improvements, dependency maintenance, and documentation corrections. No cloud sync, accounts, telemetry, or platform lock-in.
 
 ## Product direction
 

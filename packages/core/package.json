@@ -1,6 +1,6 @@
 {
   "name": "@context-passport/core",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,7 +23,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@context-passport/shared": "^0.2.0",
+    "@context-passport/shared": "^1.0.0",
     "zod": "latest"
   },
   "devDependencies": {

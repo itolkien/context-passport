@@ -479,7 +479,7 @@ export function createProgram(): Command {
   program
     .name("passport")
     .description("Create and inspect local-first AI context handoff bundles")
-    .version("0.2.0")
+    .version("1.0.0")
     .action(async () => {
       await runInteractiveWizard();
     });

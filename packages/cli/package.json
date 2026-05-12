@@ -1,6 +1,6 @@
 {
   "name": "@context-passport/cli",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
     "passport": "dist/index.js"
@@ -21,8 +21,8 @@
     "passport": "node dist/index.js"
   },
   "dependencies": {
-    "@context-passport/core": "^0.2.0",
-    "@context-passport/shared": "^0.2.0",
+    "@context-passport/core": "^1.0.0",
+    "@context-passport/shared": "^1.0.0",
     "commander": "latest",
     "jszip": "^3.10.1"
   },

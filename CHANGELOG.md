@@ -2,6 +2,15 @@
 
 All notable changes to Context Passport will be documented in this file.
 
+## 1.0.0 - 2026-05-12
+
+### Stable release
+
+- Promoted Context Passport to v1.0.0 stable.
+- Marked the project feature-complete for the core local AI context handoff workflow.
+- Documented maintenance-mode expectations: bug fixes, security/redaction improvements, dependency maintenance, and documentation corrections.
+- Updated package versions and internal package ranges to `1.0.0`.
+
 ## 0.2.0 - 2026-05-12
 
 ### Added
