@@ -20,11 +20,12 @@ describe("interactive wizard", () => {
   it("guides a user from manual note capture through redaction and zip export", async () => {
     const workspace = await makeTempDir();
     const bundleDir = join(workspace, "debug-handoff");
+    const apiKey = ["sk", "-123...wxyz"].join("");
     const prompts = [
       "1",
       "1",
       "Debug handoff",
-      "Contact talha@example.com with API_KEY=sk-123...wxyz",
+      `Contact demo@example.com with API_KEY=${apiKey}`,
       bundleDir,
       "y",
       "y",
@@ -61,7 +62,7 @@ describe("interactive wizard", () => {
     const markerPath = join(existingDir, "keep.txt");
     await mkdir(existingDir, { recursive: true });
     await writeFile(markerPath, "do not delete", "utf8");
-    const prompts = ["1", "1", "Danger handoff", "Contact talha@example.com", existingDir, "n"];
+    const prompts = ["1", "1", "Danger handoff", "Contact demo@example.com", existingDir, "n"];
     const output: string[] = [];
 
     await expect(

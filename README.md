@@ -40,6 +40,13 @@ High-quality video: [assets/context-passport-demo.mp4](assets/context-passport-d
 - redaction engine for:
   - GitHub tokens
   - OpenAI-style API keys
+  - AWS access keys and AWS secret assignments
+  - Stripe keys
+  - Anthropic API keys
+  - Google API keys
+  - JWTs
+  - PEM private keys
+  - generic `API_KEY`, `token`, `secret`, and `password` assignments
   - email addresses
   - local home paths
   - custom regex rules in core
@@ -61,7 +68,7 @@ Start the guided wizard:
 pnpm passport
 ```
 
-The wizard can create a bundle, preview/apply redactions, inspect or validate existing bundles, and export a `.cpb.zip` archive without requiring users to memorize the lower-level commands. If an output directory already exists, the wizard warns before replacing it.
+The wizard can create a bundle, preview/apply redactions, inspect or validate existing bundles, and export a `.cpb.zip` archive without requiring users to memorize the lower-level commands. If an output directory or archive already exists, the wizard warns before replacing it.
 
 Example wizard flow:
 
@@ -86,7 +93,7 @@ Step 2/4 · Capture source
   Artifacts: 1
 
 Step 3/4 · Privacy check
-! Secret findings: 1
+! Secret findings: 2
 ✓ Redactions applied.
 
 Step 4/4 · Export

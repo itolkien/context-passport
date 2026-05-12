@@ -6,18 +6,18 @@ describe("redaction engine", () => {
     const openAiKey = `sk-${"a".repeat(48)}`;
     const githubToken = `ghp_${"b".repeat(36)}`;
     const input = [
-      "email: talha@example.com",
+      "email: demo@example.com",
       `openai key: ${openAiKey}`,
       `github token: ${githubToken}`,
-      "home=/home/itolkien/Projects/context-passport",
+      "home=/home/dev/Projects/context-passport",
     ].join("\n");
 
     const result = redactText(input);
 
-    expect(result.text).not.toContain("talha@example.com");
+    expect(result.text).not.toContain("demo@example.com");
     expect(result.text).not.toContain(openAiKey);
     expect(result.text).not.toContain(githubToken);
-    expect(result.text).not.toContain("/home/itolkien");
+    expect(result.text).not.toContain("/home/dev");
     expect(result.text).toContain("[REDACTED:email]");
     expect(result.text).toContain("[REDACTED:openai_api_key]");
     expect(result.text).toContain("[REDACTED:github_token]");
@@ -32,15 +32,16 @@ describe("redaction engine", () => {
   });
 
   it("masks generic API key and secret assignments used in demos", () => {
+    const apiKey = ["sk", "-123...wxyz"].join("");
     const input = [
-      "API_KEY=sk-123...wxyz",
+      `API_KEY=${apiKey}`,
       "password: correct-horse-battery-staple",
       "token = demo_token_1234567890",
     ].join("\n");
 
     const result = redactText(input);
 
-    expect(result.text).not.toContain("sk-123...wxyz");
+    expect(result.text).not.toContain(apiKey);
     expect(result.text).not.toContain("correct-horse-battery-staple");
     expect(result.text).not.toContain("demo_token_1234567890");
     expect(result.text).toContain("[REDACTED:generic_secret]");

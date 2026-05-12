@@ -30,16 +30,19 @@ describe("CLI bundle workflows", () => {
   it("captures a manual note as a valid bundle directory", async () => {
     const workspace = await makeTempDir();
     const out = join(workspace, "bundle");
+    const apiKey = ["sk", "-123...wxyz"].join("");
 
     const result = await captureNoteBundle({
-      note: "Debug handoff: API key sk-1234567890abcdefghijklmnopqrstuvwxyz must be masked.",
+      note: `Debug handoff: API key ${apiKey} must be masked.`,
       title: "Debug handoff",
       out,
     });
 
     expect(result.bundle.title).toBe("Debug handoff");
     expect(await validateBundlePath(out)).toEqual({ success: true, errors: [] });
-    expect(await readFile(join(out, "artifacts", "manual-note.md"), "utf8")).toContain("Debug handoff");
+    expect(await readFile(join(out, "artifacts", "manual-note.md"), "utf8")).toContain(
+      "Debug handoff",
+    );
   });
 
   it("captures a local file artifact with content hash", async () => {
@@ -56,7 +59,9 @@ describe("CLI bundle workflows", () => {
       path: "artifacts/debug.log",
       mediaType: "text/plain",
     });
-    expect(await readFile(join(out, "artifacts", "debug.log"), "utf8")).toBe("stack trace\nline 2\n");
+    expect(await readFile(join(out, "artifacts", "debug.log"), "utf8")).toBe(
+      "stack trace\nline 2\n",
+    );
     expect(await validateBundlePath(out)).toEqual({ success: true, errors: [] });
   });
 
@@ -73,26 +78,31 @@ describe("CLI bundle workflows", () => {
     expect((await stat(archivePath)).size).toBeGreaterThan(100);
     expect((await readFile(archivePath)).subarray(0, 2).toString("utf8")).toBe("PK");
     expect(await validateBundlePath(importedDir)).toEqual({ success: true, errors: [] });
-    expect(await readFile(join(importedDir, "artifacts", "manual-note.md"), "utf8")).toBe("Portable context\n");
+    expect(await readFile(join(importedDir, "artifacts", "manual-note.md"), "utf8")).toBe(
+      "Portable context\n",
+    );
   });
 
   it("inspects and redacts bundle artifacts", async () => {
     const workspace = await makeTempDir();
     const bundleDir = join(workspace, "bundle");
+    const githubToken = `ghp_${"a".repeat(36)}`;
 
     await captureNoteBundle({
-      note: "Contact talha@example.com and token ghp_1234567890abcdefghijklmnopqrstuvwxyz123456",
+      note: `Contact demo@example.com and token ${githubToken}`,
       title: "Secrets",
       out: bundleDir,
     });
 
     const preview = await redactBundlePath(bundleDir, { apply: false });
     expect(preview.findings).toHaveLength(2);
-    expect(await readFile(join(bundleDir, "artifacts", "manual-note.md"), "utf8")).toContain("talha@example.com");
+    expect(await readFile(join(bundleDir, "artifacts", "manual-note.md"), "utf8")).toContain(
+      "demo@example.com",
+    );
 
     await redactBundlePath(bundleDir, { apply: true });
     const artifact = await readFile(join(bundleDir, "artifacts", "manual-note.md"), "utf8");
-    expect(artifact).not.toContain("talha@example.com");
+    expect(artifact).not.toContain("demo@example.com");
     expect(artifact).toContain("[REDACTED:email]");
 
     const inspection = await inspectBundlePath(bundleDir);
@@ -143,7 +153,9 @@ describe("CLI bundle workflows", () => {
     zip.file("artifacts/manual-note.md", "Tainted\n");
     await writeFile(archivePath, await zip.generateAsync({ type: "nodebuffer" }));
 
-    await expect(importBundleArchive(archivePath, join(workspace, "imported"))).rejects.toThrow("sha256 mismatch");
+    await expect(importBundleArchive(archivePath, join(workspace, "imported"))).rejects.toThrow(
+      "sha256 mismatch",
+    );
   });
 
   it("rejects archives that try to overwrite reserved bundle files", async () => {
@@ -184,7 +196,9 @@ describe("CLI bundle workflows", () => {
     zip.file("manifest.json", `${JSON.stringify(bundle, null, 2)}\n`);
     await writeFile(archivePath, await zip.generateAsync({ type: "nodebuffer" }));
 
-    await expect(importBundleArchive(archivePath, join(workspace, "imported"))).rejects.toThrow("Invalid bundle archive");
+    await expect(importBundleArchive(archivePath, join(workspace, "imported"))).rejects.toThrow(
+      "Invalid bundle archive",
+    );
   });
 
   it("rejects legacy JSON archives with unexpected artifact payloads", async () => {
@@ -229,7 +243,10 @@ describe("CLI bundle workflows", () => {
           bundle,
           artifacts: [
             { path: "artifacts/note.md", dataBase64: Buffer.from(artifactText).toString("base64") },
-            { path: "artifacts/extra.md", dataBase64: Buffer.from("Unexpected\n").toString("base64") },
+            {
+              path: "artifacts/extra.md",
+              dataBase64: Buffer.from("Unexpected\n").toString("base64"),
+            },
           ],
         },
         null,
@@ -246,17 +263,18 @@ describe("CLI bundle workflows", () => {
   it("redacts sensitive strings from manifest fields", async () => {
     const workspace = await makeTempDir();
     const bundleDir = join(workspace, "bundle");
+    const githubToken = `ghp_${"b".repeat(36)}`;
 
     await captureNoteBundle({
       note: "Body without secrets",
-      title: "Token ghp_1234567890abcdefghijklmnopqrstuvwxyz123456",
+      title: `Token ${githubToken}`,
       out: bundleDir,
     });
 
     await redactBundlePath(bundleDir, { apply: true });
 
     const manifest = await readFile(join(bundleDir, "manifest.json"), "utf8");
-    expect(manifest).not.toContain("ghp_1234567890abcdefghijklmnopqrstuvwxyz123456");
+    expect(manifest).not.toContain(githubToken);
     expect(manifest).toContain("[REDACTED:github_token]");
   });
 });
